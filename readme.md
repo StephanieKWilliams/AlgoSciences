@@ -21,6 +21,23 @@ You can set up a virtual environment (optional)
     have items that are in the projects config.ini here
             
 
+Steps to create the self signed SSL:
+    1. Install OpenSSL (if not already installed)
+        -sudo apt update
+        -sudo apt install openssl
+    2.Generate a Private key:
+        -openssl genpkey -algorithm RSA -out server.key -aes256
+    3. Create a Certificate Signing Request (CSR)
+        -openssl req -new -key server.key -out server.csr
+    4. Generate the Self-Signed SSL Certificate
+        Now, use the CSR and the private key to generate the self-signed certificate.
+            -openssl x509 -req -days 365 -in server.csr -signkey server.key -out server.crt
+    5. Verify the Certificate
+        You can verify the details of the self-signed certificate using the following command:
+        -openssl x509 -in server.crt -text -noout
+
+    (use the path/to/file/ in the config file to your ssl certfile and keyfile)
+
 4.Create the systemd Service File (algoscience.service) in /etc/systemd/system/.
     create the service file 
 

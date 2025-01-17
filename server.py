@@ -43,8 +43,8 @@ def load_config(config_file: str) -> Tuple[str, bool, bool, str, str]:
     
     try:
         linuxpath = config.get('settings', 'linuxpath')
-        reread_on_query = config.get('settings', 'REREAD_ON_QUERY').lower() 
-        ssl_enabled = config.get('settings', 'SSL_ENABLED').lower() 
+        reread_on_query = config.get('settings', 'REREAD_ON_QUERY') .lower()
+        ssl_enabled = config.get('settings', 'SSL_ENABLED') .lower()
         ssl_certfile = config.get('settings', 'SSL_CERTFILE')
         ssl_keyfile = config.get('settings', 'SSL_KEYFILE')
     except KeyError as e:
@@ -83,29 +83,38 @@ def binary_search(filepath: str, search_strings: List[str], reread: bool) -> str
     Returns:
         str: "STRING EXISTS" if any string is found, else "STRING NOT FOUND".
     """
-
     start_time = time.time()
-    if not reread:
-        if not hasattr(binary_search, 'cached_lines'):
+    lines = []
+    try:
+        
+        # If reread is True, we bypass the cache and read the file again
+        if reread == 'true':
+            logging.debug(f'rereading the file again {reread}')
             with open(filepath, 'r') as file:
-                binary_search.cached_lines = [line.strip() for line in file.readlines()]
-        lines = binary_search.cached_lines
-    else:
-        with open(filepath, 'r') as file:
-            lines = [line.strip() for line in file.readlines()]
-    
-    lines.sort()
-    for search_string in search_strings:
-        index = bisect.bisect_left(lines, search_string)
-        if index < len(lines) and lines[index] == search_string:
-            execution_time = time.time() - start_time
-            logging.debug(f"DEBUG: Found string in file. Time: {execution_time:.4f} seconds")
-            return "STRING EXISTS\n"
-    
-    execution_time = time.time() - start_time
-    logging.debug(f"DEBUG: No strings found in file. Time: {execution_time:.4f} seconds")
-    return "STRING NOT FOUND\n"
+                lines = [line.strip() for line in file.readlines()]
+            lines.sort()
+        else:
+            logging.debug(f'reading from cache {reread}')
+            if not hasattr(binary_search, 'cached_lines'):
+                with open(filepath, 'r') as file:
+                    binary_search.cached_lines = [line.strip() for line in file.readlines()]
+            lines = binary_search.cached_lines
 
+        search_strings.sort()
+        for search_string in search_strings:
+            index = bisect.bisect_left(lines, search_string)
+            
+            if index < len(lines) and lines[index] == search_string:
+                execution_time = time.time() - start_time
+                logging.debug(f"Found exact match: {search_string},Execution time: {execution_time:.4f} seconds")
+                return "STRING EXISTS\n"
+
+    except FileNotFoundError:
+        # If the file is not found, return "STRING NOT FOUND"
+        execution_time = time.time() - start_time
+        logging.debug(f"STRING NOT FOUND: Execution time: {execution_time:.4f} seconds")
+        return "STRING NOT FOUND\n"
+    return "STRING NOT FOUND\n"
 def handle_client(client_socket: socket.socket, config: dict) -> None:
     """
     Handle the incoming client connection, perform the search, and send a response.
@@ -123,7 +132,12 @@ def handle_client(client_socket: socket.socket, config: dict) -> None:
         logging.debug(f"DEBUG: Client {client_socket.getpeername()} requested '{request}'")
         search_strings = load_search_strings(config['linuxpath'])
         response =binary_search(config['linuxpath'], search_strings  , config['REREAD_ON_QUERY'])
-        client_socket.send(response.encode('utf-8'))
+        # Ensure response is not None before sending
+        if response:
+            client_socket.send(response.encode('utf-8'))
+        else:
+            logging.warning("Response was None, sending default message")
+            client_socket.send("STRING NOT FOUND\n".encode('utf-8'))
     except Exception as e:
         logging.error(f"Error handling client {client_socket.getpeername()}: {e}")
         client_socket.send("ERROR\n".encode('utf-8'))
@@ -167,4 +181,4 @@ def start_server(host: str, port: int, config_file: str):
 
 # Run the server
 if __name__ == "__main__":
-    start_server('0.0.0.0', 56749, 'config.ini')
+    start_server('0.0.0.0', 56745, 'config.ini')
