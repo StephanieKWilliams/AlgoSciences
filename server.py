@@ -181,4 +181,4 @@ def start_server(host: str, port: int, config_file: str):
 
 # Run the server
 if __name__ == "__main__":
-    start_server('0.0.0.0', 56745, 'config.ini')
+    start_server('0.0.0.0', 56747, 'config.ini')
